@@ -28,7 +28,7 @@ def load_model():
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
+        df = pd.read_csv("Dataset(OMD).csv")
         df = df.drop(columns=[col for col in ['Year', 'Month', 'Day'] if col in df.columns])
         return df
     except Exception as e:
