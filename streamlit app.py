@@ -18,49 +18,56 @@ def load_lottieurl(url):
 
 @st.cache_resource
 def load_model():
-    model = joblib.load("downtime_predictor.pkl")
-    return model
+    try:
+        model = joblib.load("downtime_predictor.pkl")
+        return model
+    except Exception as e:
+        st.error(f"Error loading model: {e}")
+        return None
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
-    return df
+    try:
+        df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
+        if 'Day' not in df.columns or 'Month' not in df.columns or 'Year' not in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
+            df['Day'] = df['Date'].dt.day
+            df['Month'] = df['Date'].dt.month
+            df['Year'] = df['Date'].dt.year
+        return df
+    except Exception as e:
+        st.error(f"Error loading dataset: {e}")
+        return pd.DataFrame()
 
 def calculate_kpis(df, model):
-    if 'Downtime' in df.columns:
+    if all(col in df.columns for col in ['Day', 'Month', 'Year', 'Downtime']):
         try:
             X = df[['Day', 'Month', 'Year']]
             y_true = df['Downtime']
             y_pred = model.predict(X)
             return {
                 'Accuracy': accuracy_score(y_true, y_pred),
-                'Precision': precision_score(y_true, y_pred),
-                'Recall': recall_score(y_true, y_pred),
-                'F1 Score': f1_score(y_true, y_pred)
+                'Precision': precision_score(y_true, y_pred, zero_division=0),
+                'Recall': recall_score(y_true, y_pred, zero_division=0),
+                'F1 Score': f1_score(y_true, y_pred, zero_division=0)
             }
         except Exception as e:
-            st.error(f"Feature mismatch error: {e}")
+            st.error(f"Feature mismatch during KPI calculation: {e}")
             return {}
-    return {}
+    else:
+        st.warning("⚠️ 'Day', 'Month', 'Year', or 'Downtime' columns missing.")
+        return {}
 
-# =================== Streamlit App Starts ===================
+# =================== Streamlit App ===================
 
 st.set_page_config(page_title="⚙️ Machine Downtime Dashboard", layout="wide", page_icon="🔧")
 
 # ---- Custom CSS ----
 st.markdown("""
     <style>
-    body {
-        background-color: #f5f7fa;
-    }
-    .main {
-        background-color: #f0f2f6;
-        border-radius: 20px;
-        padding: 20px;
-    }
-    h1, h2, h3, h4 {
-        color: #27374D;
-    }
+    body {background-color: #f5f7fa;}
+    .main {background-color: #f0f2f6; border-radius: 20px; padding: 20px;}
+    h1, h2, h3, h4 {color: #27374D;}
     </style>
     """, unsafe_allow_html=True)
 
@@ -86,7 +93,7 @@ with col2:
 
 st.divider()
 
-# =================== Data Visualization Section ===================
+# =================== Data Visualization ===================
 if app_mode == "📊 Data Visualization":
     st.header("📊 Data Insights")
 
@@ -104,19 +111,20 @@ if app_mode == "📊 Data Visualization":
             col4.metric("F1 Score 🧠", f"{kpis['F1 Score']*100:.2f}%")
 
         st.subheader("🛠️ Missing Data Overview")
-        fig = px.imshow(df.isnull(), title="Missing Value Heatmap")
+        fig = px.imshow(df.isnull(), title="Missing Value Heatmap", color_continuous_scale='reds')
         st.plotly_chart(fig)
 
         st.subheader("⚡ Downtime Distribution")
-        fig = px.histogram(df, x='Downtime', color='Downtime', color_discrete_sequence=['#FFA07A', '#20B2AA'])
-        st.plotly_chart(fig)
+        if 'Downtime' in df.columns:
+            fig = px.histogram(df, x='Downtime', color='Downtime', color_discrete_sequence=['#FFA07A', '#20B2AA'])
+            st.plotly_chart(fig)
 
         st.subheader("🔗 Feature Correlation Matrix")
         corr_matrix = df.select_dtypes(include=[np.number]).corr()
         fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale='teal')
         st.plotly_chart(fig)
 
-        st.success("✅ Visualization Complete! Enjoy your Dashboard 🎉")
+        st.success("✅ Visualization Complete! 🎉")
 
     else:
         st.warning("⚠️ Dataset not found or empty.")
@@ -134,16 +142,20 @@ elif app_mode == "🔮 Predict Downtime":
             submit_button = st.form_submit_button(label='Predict Now 🚀')
 
         if submit_button:
-            input_data = np.array([[day, month, year]])
-            prediction = model.predict(input_data)
-            prediction_proba = model.predict_proba(input_data)
-            confidence = np.max(prediction_proba) * 100
+            try:
+                input_data = np.array([[day, month, year]])
+                prediction = model.predict(input_data)
+                prediction_proba = model.predict_proba(input_data)
+                confidence = np.max(prediction_proba) * 100
 
-            if prediction[0] == 1:
-                st.error(f'⚠️ Machine Likely to Downtime! (Confidence: {confidence:.2f}%)')
-            else:
-                st.success(f'✅ Machine Operating Smoothly! (Confidence: {confidence:.2f}%)')
-                st.balloons()
+                if prediction[0] == 1:
+                    st.error(f'⚠️ Machine Likely to Downtime! (Confidence: {confidence:.2f}%)')
+                else:
+                    st.success(f'✅ Machine Operating Smoothly! (Confidence: {confidence:.2f}%)')
+                    st.balloons()
+
+            except Exception as e:
+                st.error(f"Prediction error: {e}")
 
         st.divider()
 
@@ -153,29 +165,35 @@ elif app_mode == "🔮 Predict Downtime":
         if uploaded_file:
             try:
                 bulk_data = pd.read_csv(uploaded_file)
-                X_bulk = bulk_data[['Day', 'Month', 'Year']]
-                preds = model.predict(X_bulk)
-                pred_probs = model.predict_proba(X_bulk)
-                bulk_data['Downtime Prediction'] = preds
-                bulk_data['Confidence (%)'] = np.max(pred_probs, axis=1) * 100
+                if all(col in bulk_data.columns for col in ['Day', 'Month', 'Year']):
+                    X_bulk = bulk_data[['Day', 'Month', 'Year']]
+                    preds = model.predict(X_bulk)
+                    pred_probs = model.predict_proba(X_bulk)
+                    bulk_data['Downtime Prediction'] = preds
+                    bulk_data['Confidence (%)'] = np.max(pred_probs, axis=1) * 100
 
-                st.success("✅ Bulk Prediction Successful!")
-                st.dataframe(bulk_data)
+                    st.success("✅ Bulk Prediction Successful!")
+                    st.dataframe(bulk_data)
 
-                csv = bulk_data.to_csv(index=False)
-                st.download_button("📥 Download Predictions", data=csv, file_name='bulk_predictions.csv', mime='text/csv')
-
+                    csv = bulk_data.to_csv(index=False)
+                    st.download_button("📥 Download Predictions", data=csv, file_name='bulk_predictions.csv', mime='text/csv')
+                else:
+                    st.error("Uploaded CSV must contain 'Day', 'Month', and 'Year' columns.")
             except Exception as e:
-                st.error(f"Error during prediction: {e}")
+                st.error(f"Bulk prediction error: {e}")
 
     else:
-        st.warning("⚠️ Model is not loaded properly. Check your file.")
+        st.warning("⚠️ Model not loaded properly. Check your file.")
 
 # =================== Optional PowerBI Integration ===================
 st.divider()
-st.subheader("📊 PowerBI Dashboard Embedded Example")
-st.markdown("""
-    <iframe title="PowerBI Dashboard" width="100%" height="600" 
-    src="https://app.powerbi.com/view?r=YOUR_PBI_EMBED_LINK_HERE" frameborder="0" allowFullScreen="true"></iframe>
-""", unsafe_allow_html=True)
-# Replace 'YOUR_PBI_EMBED_LINK_HERE' with your actual PowerBI public link!
+
+st.subheader("📊 PowerBI Dashboard")
+placeholder_text = "Update the embed link to view PowerBI dashboard here."
+st.info(placeholder_text)
+
+# If you have PowerBI public link ready, uncomment below:
+# st.markdown("""
+#     <iframe title="PowerBI Dashboard" width="100%" height="600" 
+#     src="https://app.powerbi.com/view?r=YOUR_PBI_EMBED_LINK_HERE" frameborder="0" allowFullScreen="true"></iframe>
+# """, unsafe_allow_html=True)
