@@ -27,7 +27,7 @@ def load_model():
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv(r"C:\\Users\\sande\\OneDrive\\Desktop\\Dataset(OMD).csv")
+        df = pd.read_csv("OMD-Dataset.csvv")
         if 'Day' not in df.columns or 'Month' not in df.columns or 'Year' not in df.columns:
             df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
             df['Day'] = df['Date'].dt.day
