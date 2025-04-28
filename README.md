@@ -70,6 +70,8 @@ LinkedIn: Your Profile
 
 GitHub: @your-username
 
-## 🎥 Live Demo
 
-![Live Demo GIF]([assets/animations/live_demo.gif](https://optimization-of-machine-downtime-jd8hhfpgtyqqbltazs2wvf.streamlit.app/)
+
+## 🌐 Live App
+
+🔴 [Click here to access the live dashboard](https://optimization-of-machine-downtime-jd8hhfpgtyqqbltazs2wvf.streamlit.app/))  
