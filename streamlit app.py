@@ -23,7 +23,7 @@ def load_model():
 
 @st.cache_data
 def load_data():
-    df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
+    df = pd.read_csv(r"Dataset (Optimization machine of downtime).csv")
     return df
 
 def calculate_kpis(df, model):
