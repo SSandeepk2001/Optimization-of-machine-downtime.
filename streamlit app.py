@@ -29,6 +29,7 @@ def load_model():
 def load_data():
     try:
         df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
+        df = df.drop(columns=[col for col in ['Year', 'Month', 'Day'] if col in df.columns])
         return df
     except Exception as e:
         st.error(f"Error loading dataset: {e}")
@@ -102,6 +103,10 @@ if app_mode == "📊 Data Visualization":
         st.subheader("📂 Sample Dataset")
         st.dataframe(df.head(10), use_container_width=True)
 
+        # 🆕 Data Summary
+        st.subheader("📜 Data Summary")
+        st.dataframe(df.describe(), use_container_width=True)
+
         st.subheader("🚀 KPI Metrics")
         kpis = calculate_kpis(df, model)
         if kpis:
@@ -124,6 +129,16 @@ if app_mode == "📊 Data Visualization":
         corr_matrix = df.select_dtypes(include=[np.number]).corr()
         fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale='teal')
         st.plotly_chart(fig)
+
+        # 🆕 Feature Importance
+        if hasattr(model, 'feature_importances_'):
+            st.subheader("🌟 Feature Importance")
+            importance_df = pd.DataFrame({
+                'Feature': model.feature_names_in_,
+                'Importance': model.feature_importances_
+            }).sort_values(by='Importance', ascending=False)
+            fig = px.bar(importance_df, x='Importance', y='Feature', orientation='h', color='Importance', color_continuous_scale='viridis')
+            st.plotly_chart(fig)
 
         st.success("✅ Visualization Complete! 🎉")
 
@@ -168,6 +183,7 @@ elif app_mode == "🔮 Predict Downtime":
             try:
                 bulk_data = pd.read_csv(uploaded_file)
                 feature_cols = model.feature_names_in_ if hasattr(model, 'feature_names_in_') else []
+                bulk_data = bulk_data.drop(columns=[col for col in ['Year', 'Month', 'Day'] if col in bulk_data.columns])
                 if all(col in bulk_data.columns for col in feature_cols):
                     X_bulk = bulk_data[feature_cols]
                     preds = model.predict(X_bulk)
