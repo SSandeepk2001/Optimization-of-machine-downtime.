@@ -18,7 +18,7 @@ def load_lottieurl(url):
 
 @st.cache_resource
 def load_model():
-    model = joblib.load(r"C:\Users\sande\OneDrive\Desktop\downtime_predictor.pkl")
+    model = joblib.load("downtime_predictor.pkl")
     return model
 
 @st.cache_data
