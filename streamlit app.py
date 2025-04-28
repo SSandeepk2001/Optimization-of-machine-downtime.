@@ -28,7 +28,7 @@ def load_model():
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
+        df = pd.read_csv("OMD-Dataset.csv")
         return df
     except Exception as e:
         st.error(f"Error loading dataset: {e}")
