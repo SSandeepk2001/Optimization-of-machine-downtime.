@@ -29,33 +29,34 @@ def load_model():
 def load_data():
     try:
         df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
-        if 'Day' not in df.columns or 'Month' not in df.columns or 'Year' not in df.columns:
-            df['Date'] = pd.to_datetime(df['Date'], errors='coerce')
-            df['Day'] = df['Date'].dt.day
-            df['Month'] = df['Date'].dt.month
-            df['Year'] = df['Date'].dt.year
         return df
     except Exception as e:
         st.error(f"Error loading dataset: {e}")
         return pd.DataFrame()
 
 def calculate_kpis(df, model):
-    if all(col in df.columns for col in ['Day', 'Month', 'Year', 'Downtime']):
-        try:
-            X = df[['Day', 'Month', 'Year']]
-            y_true = df['Downtime']
-            y_pred = model.predict(X)
-            return {
-                'Accuracy': accuracy_score(y_true, y_pred),
-                'Precision': precision_score(y_true, y_pred, zero_division=0),
-                'Recall': recall_score(y_true, y_pred, zero_division=0),
-                'F1 Score': f1_score(y_true, y_pred, zero_division=0)
-            }
-        except Exception as e:
-            st.error(f"Feature mismatch during KPI calculation: {e}")
+    try:
+        feature_cols = model.feature_names_in_ if hasattr(model, 'feature_names_in_') else []
+        missing_cols = [col for col in feature_cols if col not in df.columns]
+        if missing_cols:
+            st.error(f"Feature mismatch during KPI calculation: Missing columns: {missing_cols}")
             return {}
-    else:
-        st.warning("⚠️ 'Day', 'Month', 'Year', or 'Downtime' columns missing.")
+
+        X = df[feature_cols]
+        if 'Downtime' not in df.columns:
+            st.warning("⚠️ 'Downtime' column missing.")
+            return {}
+
+        y_true = df['Downtime']
+        y_pred = model.predict(X)
+        return {
+            'Accuracy': accuracy_score(y_true, y_pred),
+            'Precision': precision_score(y_true, y_pred, zero_division=0),
+            'Recall': recall_score(y_true, y_pred, zero_division=0),
+            'F1 Score': f1_score(y_true, y_pred, zero_division=0)
+        }
+    except Exception as e:
+        st.error(f"Feature mismatch during KPI calculation: {e}")
         return {}
 
 # =================== Streamlit App ===================
@@ -136,16 +137,17 @@ elif app_mode == "🔮 Predict Downtime":
     if model is not None:
         with st.form(key='prediction_form'):
             st.subheader("📄 Enter Machine Parameters")
-            day = st.slider('📅 Day of Month', 1, 31, 15)
-            month = st.slider('🗓️ Month', 1, 12, 6)
-            year = st.slider('📆 Year', 2020, 2030, 2025)
+            feature_inputs = {}
+            if hasattr(model, 'feature_names_in_'):
+                for feature in model.feature_names_in_:
+                    feature_inputs[feature] = st.text_input(f"{feature}", value="0")
             submit_button = st.form_submit_button(label='Predict Now 🚀')
 
         if submit_button:
             try:
-                input_data = np.array([[day, month, year]])
-                prediction = model.predict(input_data)
-                prediction_proba = model.predict_proba(input_data)
+                input_array = np.array([[float(feature_inputs[f]) for f in model.feature_names_in_]])
+                prediction = model.predict(input_array)
+                prediction_proba = model.predict_proba(input_array)
                 confidence = np.max(prediction_proba) * 100
 
                 if prediction[0] == 1:
@@ -165,8 +167,9 @@ elif app_mode == "🔮 Predict Downtime":
         if uploaded_file:
             try:
                 bulk_data = pd.read_csv(uploaded_file)
-                if all(col in bulk_data.columns for col in ['Day', 'Month', 'Year']):
-                    X_bulk = bulk_data[['Day', 'Month', 'Year']]
+                feature_cols = model.feature_names_in_ if hasattr(model, 'feature_names_in_') else []
+                if all(col in bulk_data.columns for col in feature_cols):
+                    X_bulk = bulk_data[feature_cols]
                     preds = model.predict(X_bulk)
                     pred_probs = model.predict_proba(X_bulk)
                     bulk_data['Downtime Prediction'] = preds
@@ -178,7 +181,7 @@ elif app_mode == "🔮 Predict Downtime":
                     csv = bulk_data.to_csv(index=False)
                     st.download_button("📥 Download Predictions", data=csv, file_name='bulk_predictions.csv', mime='text/csv')
                 else:
-                    st.error("Uploaded CSV must contain 'Day', 'Month', and 'Year' columns.")
+                    st.error(f"Uploaded CSV must contain columns: {feature_cols}")
             except Exception as e:
                 st.error(f"Bulk prediction error: {e}")
 
@@ -186,6 +189,7 @@ elif app_mode == "🔮 Predict Downtime":
         st.warning("⚠️ Model not loaded properly. Check your file.")
 
 # =================== Optional PowerBI Integration ===================
+
 st.divider()
 
 st.subheader("📊 PowerBI Dashboard")
