@@ -72,4 +72,4 @@ GitHub: @your-username
 
 ## 🎥 Live Demo
 
-![Live Demo GIF](assets/animations/live_demo.gif)
+![Live Demo GIF](assets/animations/live_demo.gif)(https://optimization-of-machine-downtime-jd8hhfpgtyqqbltazs2wvf.streamlit.app/))
