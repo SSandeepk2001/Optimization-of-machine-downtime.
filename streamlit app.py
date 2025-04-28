@@ -28,8 +28,7 @@ def load_model():
 @st.cache_data
 def load_data():
     try:
-        df = pd.read_csv("Dataset(OMD).csv")
-        df = df.drop(columns=[col for col in ['Year', 'Month', 'Day'] if col in df.columns])
+        df = pd.read_csv("Dataset (Optimization machine of downtime).csv")
         return df
     except Exception as e:
         st.error(f"Error loading dataset: {e}")
@@ -103,7 +102,6 @@ if app_mode == "📊 Data Visualization":
         st.subheader("📂 Sample Dataset")
         st.dataframe(df.head(10), use_container_width=True)
 
-        # 🆕 Data Summary
         st.subheader("📜 Data Summary")
         st.dataframe(df.describe(), use_container_width=True)
 
@@ -130,7 +128,6 @@ if app_mode == "📊 Data Visualization":
         fig = px.imshow(corr_matrix, text_auto=True, color_continuous_scale='teal')
         st.plotly_chart(fig)
 
-        # 🆕 Feature Importance
         if hasattr(model, 'feature_importances_'):
             st.subheader("🌟 Feature Importance")
             importance_df = pd.DataFrame({
@@ -183,7 +180,6 @@ elif app_mode == "🔮 Predict Downtime":
             try:
                 bulk_data = pd.read_csv(uploaded_file)
                 feature_cols = model.feature_names_in_ if hasattr(model, 'feature_names_in_') else []
-                bulk_data = bulk_data.drop(columns=[col for col in ['Year', 'Month', 'Day'] if col in bulk_data.columns])
                 if all(col in bulk_data.columns for col in feature_cols):
                     X_bulk = bulk_data[feature_cols]
                     preds = model.predict(X_bulk)
@@ -212,7 +208,7 @@ st.subheader("📊 PowerBI Dashboard")
 placeholder_text = "Update the embed link to view PowerBI dashboard here."
 st.info(placeholder_text)
 
-# If you have PowerBI public link ready, uncomment below:
+# Uncomment and update if PowerBI link is available
 # st.markdown("""
 #     <iframe title="PowerBI Dashboard" width="100%" height="600" 
 #     src="https://app.powerbi.com/view?r=YOUR_PBI_EMBED_LINK_HERE" frameborder="0" allowFullScreen="true"></iframe>
